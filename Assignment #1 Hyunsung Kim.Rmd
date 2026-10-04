@@ -1,0 +1,314 @@
+---
+title: 'Assignment #1 Hyunsung Kim'
+output: html_document
+date: "2026-09-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Problem 1.
+Why does the sample variance divide by n-1?
+##(a). Write a function that takes a numeric vector and returns the three estimates. R’s var() and sd() compute the sample versions (dividing by 𝑛 − 1), so you will need to implement the divide-by-𝑛 version yourself. Check your function on a simulated sample of 10 observations.
+```{r}
+# Write a function that takes numeric vector and returns thre three estimates
+problem1 <- function(x) {
+  variance <- var(x)
+  standard_deviation <- sd(x)
+  variance_n <- mean((x - mean(x))^2)
+  
+  return(c(
+    variance = variance,
+    standard_deviation = standard_deviation,
+    variance_n = variance_n
+  ))
+}
+
+# Check function using a sample of 10 observations
+
+set.seed(123)
+
+  x <- rnorm(
+    n = 10,
+    mean = 0,
+    sd = 2
+  )
+
+problem1(x)
+```
+
+##(b) Simulate 1,000 samples of 5 observations from the population and apply your function to each. Store the results in a data frame with one row per sample. Plot the sampling distributions of the two variance estimators on the same axes, marking the true variance and each estimator’s mean. Which estimator is biased, and in which direction?
+```{r}
+# Simulate 1000 samples with n = 5
+set.seed(123)
+
+results <- replicate(1000, {
+  x <- rnorm(
+    n = 5,
+    mean = 0,
+    sd = 2
+  )
+  problem1(x)
+})
+
+# Convert simulation results into a data frame
+
+results_df <- as.data.frame(t(results))
+
+mean_variance <- mean(results_df$variance)
+mean_variance_n <- mean(results_df$variance_n)
+
+# Plot the sampling distributions
+
+library(ggplot2)
+
+ggplot(data = results_df) +
+  geom_density(aes(x = variance), color = "blue") +
+  geom_density(aes(x = variance_n), color = "red") +
+  
+#true population variance
+  geom_vline(
+    xintercept = 4,
+    color = "black",
+    linetype = "dashed"
+    ) +
+  
+#mean of variance estimator
+  geom_vline(
+    xintercept = mean_variance,
+    color = "blue",
+    linetype = "dotted"
+  ) +
+
+#mean of variance_n estimator
+  geom_vline(
+    xintercept = mean_variance_n,
+    color = "red",
+    linetype = "solid"
+  ) +
+  
+  labs(
+    x = "Estimated Variance",
+    y = "Density"
+  )
+  
+print(mean_variance) # mean variance
+print(mean_variance_n) # mean variance divided by n
+  
+```
+
+# The mean of the sampled variance, which is divided by n-1(variance), is closer to true variance than the value acquired after divided by n(variance_n). This shows that sampled variance divided by n is more biased to the right when compared to the true variance.
+
+##(c) Repeat (b) with samples of 3, 5, 10, 30, and 100 observations. Plot the estimated bias of each variance estimator against sample size.
+```{r}
+
+# Repeat (b) with samples of 3, 5, 10, 30, and 100 observations
+
+set.seed(123)
+
+sample_sizes <- c(3, 5, 10, 30, 100)
+
+simulation_results <- sapply(sample_sizes, function(n) {
+
+  sims <- replicate(1000, {
+    x <- rnorm(n, mean = 0, sd = 2)
+    problem1(x)
+  })
+  
+  c(
+    variance = mean(sims["variance", ]),
+    variance_n = mean(sims["variance_n", ]),
+    standard_deviation = mean(sims["standard_deviation", ])
+  )
+})
+
+# Convert results into a data grame
+
+mean_results <- data.frame(
+  n = sample_sizes,
+  variance = simulation_results["variance", ],
+  variance_n = simulation_results["variance_n", ],
+  standard_deviation = simulation_results["standard_deviation", ]
+)
+
+mean_results$bias <- mean_results$variance - 4
+mean_results$bias_n <- mean_results$variance_n - 4
+
+mean_results
+
+# Plot the estimated bias of each variance estimator against sample size
+
+library(ggplot2)
+
+df <- data.frame(
+  sample_size = c(3, 5, 10, 30, 100),
+  bias <- mean_results$bias,
+  bias_n <- mean_results$bias_n
+)
+
+ggplot(df, aes(x = sample_size, y = bias)) +
+  geom_point(aes(y = bias), color = "blue") +
+  geom_line(aes(y = bias), color = "blue") +
+  
+  geom_point(aes(y = bias_n), color = "red") +
+  geom_line(aes(y = bias_n), color = "red")  +
+  
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  
+  labs(
+    x = "Sample Size",
+    y = "Estimated Bias"
+  )
+```
+
+##(d)Is 𝑠 an unbiased estimator of 𝜎 = 2? Report its estimated bias at each sample size and explain what you find.
+
+# The definition of bias is the difference between the true parameter value(which is 2) and the average value derived from repeated sampling.
+```{r}
+mean_results$bias_s <- mean_results$standard_deviation - 2
+
+error_table1 <- data.frame(
+  sample_size = mean_results$n,
+  bias_s = mean_results$bias_s
+)
+
+error_table1
+```
+# The bias of standard deviance decreases as the size of the sample increases.
+
+##(e)At 𝑛 = 5, compare the standard deviations of the 1,000 estimates of each variance estimator. Which is less variable? Why doesn’t that make it the better estimator?
+```{r}
+# Compare the standard deviations
+
+spread <- data.frame(
+  estimator = c("s (n - 1)", "s_n (n)"),
+  simulation_sd = c(
+    sd(results_df$variance),
+    sd(results_df$variance_n)
+  )
+)
+
+spread
+
+#The standard deviation using n is less variable because its sampling distribution has a smaller standard deviation. However, bias and variability are different - less variability does not mean that the bias is smaller.
+
+```
+
+## Problem 2
+##(a) Generate a dataset of 100 observations with 𝜌=0.5. You may want to check that your variables have the distributions you expect.
+```{r}
+# Generate a dataset of 100 observations with 𝜌=0.5
+set.seed(456)
+
+n <- 100
+rho <- 0.5
+
+z <- rnorm(n, mean = 0, sd = 1)
+u <- rnorm(n, mean = 0, sd = 1)
+error <- rnorm(n, mean = 0, sd = 1)
+
+x <- rho*z + sqrt(1-rho^2)*u
+y <- 1 + 2*x + 3*z + error
+
+data <- data.frame(y, x, z)
+
+# To check that the variables have the expected distributions:
+
+summary(data)
+sd(data$x)
+sd(data$z)
+cor(data$x, data$z)
+```
+
+##(b) Fit both models, plot y against x, and describe your findings.
+```{r}
+# Fit both models
+model1 <- lm(y ~ x, data = data)
+model2 <- lm(y ~ x + z, data = data)
+
+summary(model1)
+summary(model2)
+
+library(ggplot2)
+
+# Plot y aginast x
+plot(data$x, data$y, 
+     xlab = "News Consumption",
+     ylab = "Political Knowledge")
+
+abline(model1, col = "red", lwd = 2)
+
+# Considering the estimand of the x coefficient was 2, omitting z(model1) resulted in widening the gap between the estimand and the estimate compared to model2. This shows that the bias is alleviated as an extra variable(z) is added.
+```
+
+##(c) Repeat (a) and (b) with 1,000 observations. Did more data resolve the bias?
+```{r}
+
+n <- 1000
+rho <- 0.5
+
+z <- rnorm(n, mean = 0, sd = 1)
+u <- rnorm(n, mean = 0, sd = 1)
+error <- rnorm(n, mean = 0, sd = 1)
+
+x <- rho*z + sqrt(1-rho^2)*u
+y <- 1 + 2*x + 3*z + error
+
+data1 <- data.frame(y, x, z)
+
+model1 <- lm(y ~ x, data = data1)
+model2 <- lm(y ~ x + z, data = data1)
+
+coef(model1)
+coef(model2)
+
+# A bigger sample size has decreased the coefficient to a certain degree, but the model that does not account for political interest did not fully solve the omitted variable bias.
+
+```
+
+##(d) Repeat (c) with 𝜌 = 0. Explain your findings. What does this imply for how we should construct regression models?
+```{r}
+set.seed(456)
+
+n <- 1000
+rho <- 0
+  
+z <- rnorm(n)
+u <- rnorm(n)
+error <- rnorm(n)
+  
+x <- rho*z + sqrt(1-rho^2)*u
+y <- 1 + 2*x + 3*z + error
+
+data2 <- data.frame(y, x, z)
+
+model3 <- lm(y ~ x, data = data2)
+model4 <- lm(y ~ x + z, data = data2)
+
+coef(model3)
+coef(model4)
+
+# Both models reported a mean coefficient of x at around 2, which is the estimand. This is because the rho, which is the covariate of x and z, is 0 - in other words, x and z do not have an effect on one another. This severance of influence means that the omission of z in model 3 does not bias the coefficient on X. This implies that omitted-variable bias arises when an omitted variable both affects the outcome and is correlated with an included explanatory variable.
+
+```
