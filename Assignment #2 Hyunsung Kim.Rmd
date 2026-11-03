@@ -1,0 +1,251 @@
+---
+title: 'Assignment #2 Hyunsung Kim'
+output: html_document
+date: "2026-10-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+library(ggplot2)
+
+## Problem 1: Simulation
+# Create a simulated dataset in which the outcome is a linear function of a treatment variable and a confounding variable. Fit a linear model for the true data generating process and print the summary table. 
+```{r}
+set.seed(111)
+n <- 100
+
+# Set z as the confounding variable
+z <- rnorm(
+    n = 100,
+    mean = 0,
+    sd = 1
+)
+
+# Set x as the treatment variable
+x <- 0.8*z + rnorm(n, mean = 0, 1)
+
+y <- 3*x + 2*z + rnorm(n, mean = 0)
+
+data <- data.frame(y, x, z)
+
+model1 <- lm(y ~ x + z, data = data)
+  
+summary(model1)
+```
+
+
+# (a) Using the true model, demonstrate that the coefficient for your treatment variable follows the central limit theorem. That is, demonstrate that the coefficient's sampling distribution is approximately normal.
+```{r}
+set.seed(222)
+
+n <- 100
+
+B <- 2000
+
+coefficient <- replicate(B, {
+  z <- rnorm(
+    n = 100,
+    mean = 0,
+    sd = 1
+)
+
+x <- 0.8*z + rnorm(n, mean = 0, 1)
+
+y <- 3*x + 2*z + rnorm(n, mean = 0)
+
+model <- lm(y ~ x + z)
+
+coef(model)["x"]
+})
+
+data <- data.frame(y, x, z)
+sim_data <- data.frame(y, x, z)
+
+ggplot(data, aes(x =coefficient)) + 
+  geom_histogram(
+    aes(y = after_stat(density))
+  ) + 
+  geom_density(linewidth = 1)
+
+# The histogram shows that the sampling distribution of the OLS estimator is approximately normal.
+
+```
+
+# (b) Compute the bootstrapped standard error for the coefficient of the treatment variable.
+```{r}
+# 2000 bootstrap replications for the coefficient of the treatment variable
+set.seed(222)
+B <- 2000
+sim_data <- data.frame(y, x, z)
+
+boot_strap <- replicate(B, {
+  idx <- sample(1:nrow(sim_data), 
+                size = nrow(sim_data),
+                replace = TRUE
+                )
+  
+  boot_data <- sim_data[idx, ]
+
+  model <- lm(y ~ x + z, data = boot_data)
+  
+  coef(model)["x"]
+  })
+
+# Compute the bootstrapped standard error for the coefficient of the treatment variable
+boot_se <- sd(boot_strap)
+print(boot_se)
+
+```
+
+
+# (c) Fit a model that omits the confounding variable. Repeat (a) for this new model and plot the sampling distribution of the treatment variable’s coefficient. How do your results differ? What does this imply about statistical tests based on a coefficient’s sampling distribution? 
+```{r}
+set.seed(333)
+n <- 100
+
+z <- rnorm(
+    n = 100,
+    mean = 0,
+    sd = 1
+)
+
+x <- 0.8*z + rnorm(n, mean = 0, 1)
+
+y <- 3*x + 2*z + rnorm(n, mean = 0)
+
+data2 <- data.frame(y, x)
+
+model2 <- lm(y ~ x, data = data2)
+  
+summary(model2)
+
+
+# Replicate (a)
+
+B <- 2000
+
+coefficient2 <- replicate(B, {
+  z <- rnorm(
+    n = 100,
+    mean = 0,
+    sd = 1
+)
+
+x <- 0.8*z + rnorm(n, mean = 0, 1)
+
+y <- 3*x + 2*z + rnorm(n, mean = 0)
+
+model <- lm(y ~ x)
+
+coef(model)["x"]
+})
+
+# Plot the sampling distribution of the treatment variable's coefficient
+
+data3 <- data.frame(coefficient2)
+ggplot(data3, aes(x =coefficient2)) + 
+  geom_histogram(bins = 30, fill = "skyblue", color = "white") + 
+  geom_vline(
+  xintercept = 3,
+  linetype = "dashed",
+  color = "red"
+  ) +
+  labs(
+    x = "Estimated Regression Coefficient",
+    y = "Frequency"
+  ) +
+  theme_bw()
+
+summary(data3)
+# While the sampling test demonstrate the distribution of the treatment coefficient, it does not address the omitted variable and overestimates the coefficient. This shows that statistical tests based on a coefficient's sampling distribution can have an approximately normal sampling distribution, but are not sufficient to capture the true data generating model. 
+
+```
+
+
+## Problem 2 : Data Analysis
+# Use any dataset you like. It can be from the course materials, simulated, or drawn from another source.
+#(a) Conduct a hypothesis test for a difference in means. You decide what the hypotheses are, whether to use a t-test or a z-test, and the level of significance. Explain your decisions, and interpret your results both substantively and statistically.
+```{r}
+# Use a sample dataset of used motorcars sold in the United States, pre-built in R
+data(mtcars)
+
+# The hypothesis would be that cars with manual transmissions have a different fuel economy(mpg) stat compared to automatic cars. This means that the null hypothesis is no difference between the two types. Manual cars are coded with 1 in "am", and the automatics with 0. To test this hypothesis, I chose to do a t-test because the dataset contains 32 samples. Smaller sample size might result in an uncertain standard deviance, which can be adjusted by using the t-test. This will be a two-tail test because the alternative hypothesis permits either group to have a higher mean.
+
+t.test(mpg ~ am, data = mtcars)
+# The results show that manual cars' average mpg is 7.245 higher compared to that of automatic cars. The absolute value of the t-statistic is 3.77. This is significantly higher than the threshold of a 95% two-tailed critical t-value with 18.33 degrees of freedom, which is 2.098. The p-value is 0.00137. This means that the difference between the two sample car groups is significant enough to reject the null hypothesis(two groups having no difference at all in mpg).
+```
+
+
+# (b) Using the same data, fit a linear model. Interpret the coefficient, standard error, t-value, and p-value.
+```{r}
+
+model3 <- lm(mpg ~ am, data = mtcars)
+
+summary(model3)
+
+# The coefficient was 7.245, which confirms that manual cars' mpg is higher than automatic cars' mpg by 7.245 units. The standard error (of the coefficient) was 1.764. This means that in a 95% confidence interval, the estimate may range within 7.245±2.042*1.764. The t-value was 7.245/1.764, which is approximately 4.106. This means that the estimate is 4.106 standard errors away from 0. The p-value was 0.000285, which indicates that the probability of observing this t-statistic in absolute value is approximately 0.0285%.
+```
+
+# (c) Conduct a permutation test for your hypothesis. Plot the null distribution of the test statistic and mark your observed test statistic on the plot. Discuss your results, including how the permutation p-value compares with the p-values from (a) and (b).
+```{r}
+# Permutation Test
+# Fit the permutation sample to the model (includes doing the permutation test manually)
+set.seed(444)
+
+coefficient3 <- coef(model3)["am"]
+
+# Run 2000 permutations
+n_perm <- 2000
+
+perm_stats <- replicate(n_perm, {
+  shuffled_am <- sample(mtcars$am)
+  perm_model <- lm(mtcars$mpg ~ shuffled_am)
+  coef(perm_model)["shuffled_am"]
+})
+
+# Calculate two-sided permutation p-value
+p_value <- (sum(abs(perm_stats) >= abs(coefficient3)) + 1) /
+          (n_perm + 1)
+
+print(p_value)
+
+# Plotting the fitted model on the plot
+data4 <- data.frame(statistic = perm_stats)
+
+ggplot(data4, aes(x = statistic)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "white") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = coefficient3, color = "red", linewidth = 1) +
+  labs(
+    title = "Null Distribution of Permutation Test",
+    x = "Regression Coefficient (am)",
+    y = "Frequency"
+  ) +
+  theme_bw()
+
+# After 2000 reps of permutation test, much of the figures are identical to those of (a) and (b). The estimated coefficient of 7.245 is identical. P-value after the permutation test (0.001) is almost identical to the p-value from (b), but is bigger than that of (a). The permutation p-value is different because it used the distribution generated by shuffling group labels instead of following certain theoretical distributions.
+```
+
+
